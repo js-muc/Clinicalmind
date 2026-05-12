@@ -1,0 +1,8 @@
+gradio
+sentence-transformers
+numpy
+pandas
+openai
+python-dotenv
+pypdf
+scikit-learn

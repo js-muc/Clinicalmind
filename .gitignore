@@ -1,0 +1,43 @@
+# Python virtual environment
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.code-workspace
+
+# FAISS index files
+*.faiss
+*.index
+
+# Logs
+*.log
+logs/
+
+# Uploaded files
+uploads/
+temp/
+
+# Distribution
+dist/
+build/
+*.egg-info/
