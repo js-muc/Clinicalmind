@@ -140,6 +140,8 @@ clinicalmind/
 ├── requirements.txt
 └── README.md
 ```
+![ClinicalMind Architecture](docs/screenshots/architecture-diagram.png)
+
 ## 🔄 System Flow
 
 ```text
