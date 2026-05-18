@@ -40,6 +40,7 @@ Example:
 "Which patients had temperature above 39?"
 
 "How many patients have pneumonia?"
+```
 
 ![ClinicalMind Demo](demo.png)
 
@@ -56,9 +57,9 @@ Most RAG systems just retrieve text.
 | Count patients by condition | ❌ | ✅ |
 | Apply numeric threshold logic | ❌ | ✅ |
 | Semantic clinical reasoning | ❌ | ✅ |
-| Detect anomalies | ❌ | ✅ |
-| Drug interaction warnings | ❌ | ✅ |
-| Risk scoring | ❌ | ✅ |
+| Structured clinical extraction | ❌ | ✅ |
+| Patient lookup routing | ❌ | ✅ |
+| Multi-query clinical search | ❌ | ✅ |
 
 ---
 
@@ -84,38 +85,31 @@ Most RAG systems just retrieve text.
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Current Architecture
 
-```
+```text
 clinicalmind/
 │
 ├── app/
-│   ├── agents/
-│   │   ├── tools/              # LangGraph agent tools
-│   │   ├── workflows/          # Diagnosis, risk, triage graphs
-│   │   └── memory/             # Conversation memory
 │   │
-│   ├── clinical/               # Clinical intelligence layer
+│   ├── clinical/
+│   │   ├── extractors.py
 │   │   ├── reasoning_engine.py
-│   │   ├── aggregation_engine.py
-│   │   ├── risk_engine.py
-│   │   └── symptom_engine.py
+│   │   └── record_lookup.py
 │   │
-│   ├── rag/                    # RAG pipeline
-│   │   ├── chunking.py
-│   │   ├── embeddings.py
-│   │   └── retrieval.py
+│   ├── handlers/
+│   │   └── lookup_handler.py
 │   │
-│   ├── routing/                # Query routing
-│   │   ├── intent_detection.py
-│   │   └── query_router.py
+│   ├── rag/
+│   │   └── loader.py
 │   │
-│   └── storage/                # Data storage
-│       ├── vector_store.py
-│       └── document_store.py
+│   ├── routing/
+│   │   ├── classifier.py
+│   │   └── query_parser.py
+│   │
+│   └── main.py
 │
 ├── requirements.txt
-├── run.py
 └── README.md
 ```
 
@@ -141,7 +135,7 @@ cp .env.example .env
 # Edit .env and add your OPENAI_API_KEY
 
 # Run the application
-python run.py
+python app/main.py
 
 ```
 
@@ -151,14 +145,14 @@ python run.py
 
 | Layer | Technology |
 |-------|-----------|
-| LLM | OpenAI GPT-4 |
-| RAG Framework | LangChain |
-| Agent Framework | LangGraph |
-| Embeddings | Sentence Transformers |
-| Vector Store | FAISS |
-| Interface | Gradio |
 | Language | Python 3.11 |
-| Deployment | Docker |
+| UI | Gradio |
+| Embeddings | SentenceTransformers |
+| LLM | OpenAI GPT-4 |
+| PDF Processing | PyPDF |
+| Vector Similarity | NumPy |
+| Environment | python-dotenv |
+| Architecture Style | Modular RAG |
 
 ---
 
@@ -182,7 +176,7 @@ Built specifically for African contexts.
 - [x] 3-layer reasoning engine
 - [x] PDF document processing
 - [x] Natural language clinical queries
-- [x] Modular LangGraph architecture
+- [x] Modular clinical routing architecture
 - [ ] Drug interaction detection
 - [ ] Patient risk scoring
 - [ ] React professional dashboard
