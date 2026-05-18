@@ -42,7 +42,35 @@ Example:
 "How many patients have pneumonia?"
 ```
 
-![ClinicalMind Demo](demo.png)
+## 📸 System Screenshots
+
+### 🏠 Main Interface
+
+![Home Screen](docs/screenshots/home-screen.png)
+
+---
+
+### 🔎 Patient Lookup Engine
+
+Natural language patient retrieval with structured extraction.
+
+![Lookup Demo](docs/screenshots/lookup-demo.png)
+
+---
+
+### 🔢 Numeric Clinical Reasoning
+
+Threshold-based reasoning engine for temperatures, vitals and measurements.
+
+![Numeric Demo](docs/screenshots/numeric-demo.png)
+
+---
+
+### 📊 Aggregation & Counting Engine
+
+Counts and groups patients by diagnoses and symptoms.
+
+![Aggregation Demo](docs/screenshots/aggregation-demo.png)
 
 ---
 
