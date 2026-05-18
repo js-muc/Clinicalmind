@@ -6,6 +6,7 @@ from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 from openai import OpenAI
 from dotenv import load_dotenv
+from handlers.lookup_handler import handle_lookup
 
 from clinical.extractors import (
     normalize_key,
@@ -35,6 +36,12 @@ from routing.query_parser import (
 
 from clinical.record_lookup import find_record_by_identifier
 
+from rag.loader import (
+    load_document,
+    get_all_records,
+    DOCUMENT_STORE
+)
+
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -50,240 +57,12 @@ else:
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
-# -------------------------------
-# 🧠 MULTI-DOCUMENT STORE
-# -------------------------------
-DOCUMENT_STORE = []
 
 # -------------------------------
 # 🧠 CHAT MEMORY
 # -------------------------------
 CHAT_HISTORY = []
 
-
-# -------------------------------
-# 🔧 PROCESS PDF
-# -------------------------------
-def process_pdf(file):
-    reader = PdfReader(file.name)
-
-    full_text = ""
-    for page in reader.pages:
-        full_text += page.extract_text()
-
-    clean_text = re.sub(r"data:text/html.*", "", full_text)
-    clean_text = re.sub(r"<.*?>", "", clean_text)
-    clean_text = re.sub(r"\s+", " ", clean_text).strip()
-
-    chunks = []
-    metadata = []
-
-    records = re.split(r'(?=Page \d+)', clean_text)
-
-    for r in records:
-        r = r.strip()
-        if not r:
-            continue
-
-        chunk = "Page " + r
-        chunks.append(chunk)
-
-        metadata.append("record")
-
-    embeddings = model.encode(chunks)
-
-    return chunks, embeddings, metadata
-
-
-# -------------------------------
-# 🔧 LOAD DOCUMENT
-# -------------------------------
-def load_document(file):
-    for doc in DOCUMENT_STORE:
-        if doc["name"] == file.name:
-            return
-
-    chunks, embeddings, metadata = process_pdf(file)
-
-    records = []
-
-    for i, chunk in enumerate(chunks):
-
-        fields = extract_fields_from_chunk(chunk)
-
-        records.append({
-            "chunk": chunk,
-            "embedding": embeddings[i],
-            "metadata": metadata[i],
-            "source": os.path.basename(file.name),
-            "page": fields.get("page", "Unknown"),
-            "fields": fields
-        })
-
-    DOCUMENT_STORE.append({
-        "name": file.name,
-        "records": records
-    })
-
-def extract_fields_from_chunk(chunk):
-    fields = {}
-
-    text = chunk
-
-   
-    # -------------------------------
-    # 🆔 ENTITY
-    # -------------------------------
-    id_match = re.search(r"Patient ID:\s*([A-Z0-9]+)", text)
-
-    if id_match:
-        fields["entity"] = id_match.group(1)
-
-    # -------------------------------
-    # 👤 NAME (independent)
-    # -------------------------------
-    name_match = re.search(r"Name:\s*([A-Za-z\s]+?)\s*Age", text)
-
-    if name_match:
-        fields["name"] = name_match.group(1).strip()
-    
-
-        # -------------------------------
-    # 🎂 AGE
-    # -------------------------------
-    age_match = re.search(
-        r"Age:\s*(\d+)",
-        text,
-        re.IGNORECASE
-    )
-
-    if age_match:
-        fields["age"] = age_match.group(1)
-
-
-        # -------------------------------
-    # 🚻 GENDER
-    # -------------------------------
-    gender_match = re.search(
-        r"Gender:\s*(Male|Female)",
-        text,
-        re.IGNORECASE
-    )
-
-    if gender_match:
-        fields["gender"] = gender_match.group(1)    
-    # -------------------------------
-    # 🩺 SYMPTOMS (Chief Complaint)  
-    # -------------------------------
-    symptoms_match = re.search(
-        r"Chief Complaint:\s*([^.]+)",
-        text
-    )
-
-    if symptoms_match:
-        symptoms = symptoms_match.group(1).lower()
-
-        # remove noise phrases
-        symptoms = re.sub(r"reported.*", "", symptoms)
-
-        fields["symptoms"] = symptoms.strip()  
-
-        print("SYMPTOMS:", fields.get("symptoms"))  
-
-    # -------------------------------
-    # 📄 PAGE (independent)
-    # -------------------------------
-    page_match = re.search(r"Page\s*(\d+)", text)
-
-    if page_match:
-        fields["page"] = page_match.group(1)
-    diagnosis_match = re.search(
-        r"Diagnosis:\s*([A-Za-z\s]+)",
-        text,
-        re.IGNORECASE
-    )
-
-    diagnosis_match = re.search(
-        r"Diagnosis:\s*(.+?)(?:Treatment Plan:|Medication:|Advice:|$)",
-        text,
-        re.IGNORECASE
-    )
-
-    if diagnosis_match:
-        fields["diagnosis"] = diagnosis_match.group(1).strip()
-
-        # -------------------------------
-    # 💊 MEDICATION
-    # -------------------------------
-    medication_match = re.search(
-        r"Medication:\s*(.+?)(?:Advice:|Follow-up:|$)",
-        text,
-        re.IGNORECASE
-    )
-
-    if medication_match:
-        fields["medication"] = medication_match.group(1).strip()   
-    # -------------------------------
-    # ACTION (treatment / medication)
-    # -------------------------------
-    if "Medication:" in text:
-        part = text.split("Medication:")[1]
-
-        stop_words = ["Advice:", "Follow-up:", "Diagnosis:"]
-        for stop in stop_words:
-            if stop in part:
-                part = part.split(stop)[0]
-
-        value = part.strip()
-
-        # remove trailing junk like "-"
-        value = re.sub(r"[-\s]+$", "", value)
-
-        fields["action"] = value
-
-    elif "Treatment Plan:" in text:
-        part = text.split("Treatment Plan:")[1]
-
-        stop_words = ["Medication:", "Advice:", "Follow-up:"]
-        for stop in stop_words:
-            if stop in part:
-                part = part.split(stop)[0]
-
-        fields["action"] = part.strip()
-
-        # -------------------------------
-        # 🔢 ADD GENERIC NUMERIC FIELDS
-        # -------------------------------
-    numeric_fields = extract_numeric_fields(text)
-        # -------------------------------
-    # 🩸 BLOOD PRESSURE
-    # -------------------------------
-    bp_match = re.search(
-        r"Blood Pressure:\s*([\d/]+\s*mmHg)",
-        text,
-        re.IGNORECASE
-    )
-
-    if bp_match:
-        fields["blood_pressure"] = bp_match.group(1).strip()
-
-    
-        # -------------------------------
-    # ❤️ HEART RATE
-    # -------------------------------
-    hr_match = re.search(
-        r"Heart Rate:\s*(\d+\s*bpm)",
-        text,
-        re.IGNORECASE
-    )
-
-    if hr_match:
-        fields["heart_rate"] = hr_match.group(1).strip()
-
-    for key, value in numeric_fields:
-        fields[key] = value
-
-    return fields
 
 def build_prompt(context, question):
     intent = detect_intent(question)
@@ -484,66 +263,16 @@ def answer_question(file, question):
     if file is None:
         return "Please upload a PDF first."
 
-    load_document(file)
+    load_document(file, model)
 
     # 🧠 DEBUG QUERY TYPE
     query_type = classify_query(question)
-        # =================================
-        # EXACT PATIENT LOOKUP
-        # =================================
-
+    # =================================
+    # EXACT PATIENT LOOKUP
+    # =================================
     if query_type == "lookup":
-        all_records = []
+            return handle_lookup(question)
 
-        for doc in DOCUMENT_STORE:
-            all_records.extend(doc["records"])    
-
-        identifier = extract_identifier(question)
-
-        if not identifier:
-            return "No patient identifier found."
-
-        matched_record = find_record_by_identifier(
-            all_records,
-            identifier
-        )
-
-        if not matched_record:
-            return "Patient record not found."
-        fields = matched_record["fields"]
-
-        result = f"""
-Patient Name: {fields.get('name', 'Unknown')}
-Patient ID: {fields.get('entity', 'N/A')}
-Age: {fields.get('age', 'N/A')}
-Gender: {fields.get('gender', 'N/A')}
-
-Diagnosis:
-{fields.get('diagnosis', 'N/A')}
-
-Symptoms:
-{fields.get('symptoms', 'N/A')}
-
-Temperature:
-{fields.get('temperature', 'N/A')}
-
-Blood Pressure:
-{fields.get('blood_pressure', 'N/A')}
-
-Heart Rate:
-{fields.get('heart_rate', 'N/A')}
-
-Medication:
-{fields.get('medication', 'N/A')}
-
-Page:
-{matched_record.get('page', 'N/A')}
-
-Source Document:
-{matched_record.get('source', 'Unknown')}
-"""
-
-        return result
     print("QUESTION:", question)
     print("ROUTING TO:", query_type)
     print("ROUTING TO:", query_type)
@@ -556,11 +285,8 @@ Source Document:
     # -------------------------------
     if query_type == "reasoning":
 
-        all_records = []
+        all_records = get_all_records()
         all_chunks = []
-
-        for doc in DOCUMENT_STORE:
-            all_records.extend(doc["records"])
 
         for record in all_records:
             all_chunks.append(record["chunk"])
@@ -624,11 +350,8 @@ Source Document:
     # -------------------------------
     if query_type == "numeric":
 
-        all_records = []
+        all_records = get_all_records()
         all_chunks = []
-
-        for doc in DOCUMENT_STORE:
-            all_records.extend(doc["records"])
 
         for record in all_records:
             all_chunks.append(record["chunk"])
@@ -710,10 +433,7 @@ Source Document:
     identifier = extract_identifier(question)
 
     if identifier:
-        all_records = []
-
-        for doc in DOCUMENT_STORE:
-            all_records.extend(doc["records"])
+        all_records = get_all_records()
 
         matched_chunks = [
             r["chunk"]
@@ -746,10 +466,7 @@ Source Document:
     # -------------------------------
     if query_type == "aggregation" and "most common" in question.lower():
 
-        all_records = []
-
-        for doc in DOCUMENT_STORE:
-            all_records.extend(doc["records"])
+        all_records = get_all_records()
 
         diagnosis_counts = {}
 
@@ -782,11 +499,8 @@ Source Document:
     if query_type == "aggregation":
 
         # merge all chunks
-        all_records = []
-
-        for doc in DOCUMENT_STORE:
-            all_records.extend(doc["records"])
-            print("\n=== TOTAL RECORDS ===", len(all_records))
+        all_records = get_all_records()
+        print("\n=== TOTAL RECORDS ===", len(all_records))
 
         
 
