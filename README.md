@@ -140,6 +140,45 @@ clinicalmind/
 ├── requirements.txt
 └── README.md
 ```
+## 🔄 System Flow
+
+```text
+User Query
+    ↓
+Query Classifier
+    ↓
+Routing Layer
+    ├── Lookup Handler
+    ├── Numeric Reasoning
+    ├── Aggregation Engine
+    └── Semantic Retrieval
+            ↓
+      Clinical Extraction
+            ↓
+      Structured Response
+```
+
+---
+
+## 🧠 Reasoning Pipeline
+
+```text
+PDF Upload
+   ↓
+Document Loader
+   ↓
+Chunk Processing
+   ↓
+Field Extraction
+   ↓
+Embedding Generation
+   ↓
+Semantic Search
+   ↓
+Clinical Reasoning
+   ↓
+Final Response
+```
 
 ---
 
