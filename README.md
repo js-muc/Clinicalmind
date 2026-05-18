@@ -253,6 +253,73 @@ Built specifically for African contexts.
 
 ---
 
+# 📈 Development Progress
+
+## ✅ Phase 1 — Core Clinical Engine
+
+Completed:
+
+- PDF ingestion pipeline
+- Semantic chunking
+- Embedding generation
+- Patient lookup engine
+- Structured field extraction
+- Numeric reasoning
+- Aggregation queries
+- Modular architecture refactor
+
+---
+
+## ✅ Phase 2 — Clinical Reasoning Layer
+
+Completed:
+
+- Symptom normalization
+- Semantic similarity scoring
+- Threshold-based reasoning
+- Clinical consistency checks
+- Structured patient retrieval
+- Semantic diagnosis matching
+
+---
+
+## 🚧 Phase 3 — Production Scaling
+
+In Progress:
+
+- LangGraph orchestration
+- FAISS vector database
+- FastAPI backend
+- Docker containerization
+- REST API endpoints
+- Multi-document support
+- React professional dashboard
+
+---
+
+## 🔮 Planned Enterprise Features
+
+- Drug interaction detection
+- AI-powered risk scoring
+- Multi-hospital deployment
+- Real-time clinical alerts
+- Medical audit logging
+- Secure authentication
+- Cloud deployment pipeline
+
+---
+
+## 📅 Latest Engineering Updates
+
+| Date | Update |
+|------|--------|
+| May 2026 | Refactored monolith into modular architecture |
+| May 2026 | Added dedicated lookup handler |
+| May 2026 | Stabilized extraction engine |
+| May 2026 | Improved README and documentation |
+| May 2026 | Added professional screenshots |
+---
+
 ## 👨‍💻 Built By
 
 **Jesee Muchoki** — Full Stack Developer & AI Engineer
