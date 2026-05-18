@@ -1,42 +1,45 @@
-# ClinicalMind
-
-Scalable Clinical AI + RAG System
-
-## Architecture
-- Modular RAG
-- Clinical reasoning
-- Numeric reasoning
-- Agent-ready architecture
-- LangChain/LangGraph preparation
-
-## Run
-
-```bash
-pip install -r requirements.txt
-python app/main.py
-```
-
 <div align="center">
 
 # 🏥 ClinicalMind
-### AI-Powered Clinical Intelligence System for African Healthcare
+
+### Clinical AI + Retrieval-Augmented Reasoning System
+
+AI-powered medical document intelligence system built for scalable healthcare record analysis and reasoning.
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)
-![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![SentenceTransformers](https://img.shields.io/badge/SentenceTransformers-FF6F00?style=for-the-badge)
 ![Gradio](https://img.shields.io/badge/Gradio-FF7C00?style=for-the-badge)
+![RAG](https://img.shields.io/badge/RAG-System-blue?style=for-the-badge)
 
-> Upload patient records and query them in plain English.
-> Built for African healthcare workers who deserve AI assistance too.
-
-[🎥 Demo Video](https://youtu.be/Dqa3pkfvcDU) · [🐛 Report Bug](https://github.com/js-muc/Clinicalmind/issues) · [✨ Request Feature](https://github.com/js-muc/Clinicalmind/issues)
+[🎥 Demo Video](https://youtu.be/Dqa3pkfvcDU) ·
+[🐛 Issues](https://github.com/js-muc/Clinicalmind/issues) ·
+[⭐ Star Repository](https://github.com/js-muc/Clinicalmind)
 
 </div>
 
 ---
 
-## 📸 Demo
+# 📌 Overview
+
+ClinicalMind is a modular clinical reasoning system that combines:
+
+- Retrieval-Augmented Generation (RAG)
+- Semantic medical search
+- Numeric reasoning
+- Patient aggregation queries
+- Structured clinical extraction
+
+The platform allows healthcare documents to be queried using natural language.
+
+Example:
+
+```text
+"Show patient HSP0007"
+
+"Which patients had temperature above 39?"
+
+"How many patients have pneumonia?"
 
 ![ClinicalMind Demo](demo.png)
 
