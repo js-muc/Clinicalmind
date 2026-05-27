@@ -1,11 +1,7 @@
 import gradio as gr
 import re
-import os
 import numpy as np
 from pypdf import PdfReader
-from sentence_transformers import SentenceTransformer
-from openai import OpenAI
-from dotenv import load_dotenv
 from handlers.lookup_handler import handle_lookup
 
 from clinical.extractors import (
@@ -34,6 +30,41 @@ from routing.query_parser import (
     extract_identifier
 )
 
+from clinical.normalization import (
+    normalize_medical_terms
+)
+
+from clinical.symptom_engine import (
+
+    extract_symptoms_from_question,
+
+    semantic_match_score,
+
+    strict_symptom_match
+
+)
+from clinical.numeric_engine import (
+    handle_numeric_reasoning
+)
+
+from clinical.aggregation_engine import (
+    handle_aggregation
+)
+
+from core.config import (
+
+    client,
+
+    model
+
+)
+
+from handlers.reasoning_handler import (
+
+    handle_reasoning
+
+)
+
 from clinical.record_lookup import find_record_by_identifier
 
 from rag.loader import (
@@ -42,20 +73,6 @@ from rag.loader import (
     DOCUMENT_STORE
 )
 
-load_dotenv()
-
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-client = None
-
-if OPENAI_API_KEY:
-    client = OpenAI(api_key=OPENAI_API_KEY)
-    print("✅ OpenAI client initialized")
-
-else:
-    print("⚠️ No OpenAI API key found — running local mode")
-
-model = SentenceTransformer("all-MiniLM-L6-v2")
 
 
 # -------------------------------
@@ -116,145 +133,6 @@ Question:
 {question}
 """
 
-def semantic_match_score(query_words, text):
-    if not text.strip():
-        return 0
-
-    text_vec = model.encode([text])[0]
-
-    scores = []
-
-    for word in query_words:
-        word_vec = model.encode([word])[0]
-
-        sim = np.dot(word_vec, text_vec) / (
-            np.linalg.norm(word_vec) * np.linalg.norm(text_vec)
-        )
-
-        scores.append(sim)
-
-    return np.mean(scores)
-
-
-def normalize_medical_terms(text):
-    text = text.lower()
-
-    mapping = {
-        "shortness of breath": "dyspnea",
-        "chest pain": "angina",
-        "fever": "pyrexia",
-        "high fever": "pyrexia",
-        "burning urination": "dysuria"
-    }
-
-    for k, v in mapping.items():
-        text = text.replace(k, v)
-
-    return text
-# 🧠 CLINICAL WEIGHTS (ADD HERE)
-SYMPTOM_WEIGHTS = {
-    "difficulty breathing": 3,
-    "dyspnea": 3,
-    "chest pain": 2,
-    "angina": 2,
-    "cough": 1,
-    "fever": 1,
-}
-
-
-def extract_symptoms_from_question(question):
-    q = question.lower()
-
-    q = normalize_medical_terms(q)
-
-    # detect "only"
-    only_flag = "only" in q
-
-    # remove noise
-    q = re.sub(r"(which|patients|had|with|only|what|their|diagnosis|was|were)", "", q)
-
-    parts = re.split(r"\band\b|,", q)
-
-    symptoms = []
-
-    for p in parts:
-        p = p.strip()
-        p = re.sub(r"[^\w\s]", "", p)
-
-        if len(p) < 3:
-            continue
-
-        symptoms.append(p)
-
-    return symptoms, only_flag
-def strict_symptom_match(query_symptoms, record_parts):
-    matches = []
-
-    record_parts = [p.strip() for p in record_parts if len(p.strip()) > 2]
-    symptom_vecs = {s: model.encode([s])[0] for s in query_symptoms}
-    
-    for symptom in query_symptoms:
-        best_score = 0
-
-        for part in record_parts:
-            symptom_vec = symptom_vecs[symptom]
-
-            # ✅ ADD THIS LINE (CRITICAL FIX)
-            part_vec = model.encode([part])[0]
-
-            similarity = np.dot(symptom_vec, part_vec) / (
-               np.linalg.norm(symptom_vec) * np.linalg.norm(part_vec)
-            )
-            # 🚫 HARD CLINICAL FILTER
-            if symptom not in part and similarity < 0.7:
-                continue
-
-            best_score = max(best_score, similarity)
-
-        if best_score > 0.65:   # slightly higher threshold
-            matches.append(True)
-        else:
-            matches.append(False)
-
-    total_score = 0
-    max_possible = 0
-
-    for i, symptom in enumerate(query_symptoms):
-
-        weight = SYMPTOM_WEIGHTS.get(symptom, 1)
-        max_possible += weight
-
-        if matches[i]:
-            total_score += weight
-
-    confidence = total_score / max_possible if max_possible > 0 else 0
-
-    # 🚨 PENALIZE EXTRA SYMPTOMS (NEW LOGIC)
-    extra_count = 0
-
-    for part in record_parts:
-        match = False
-        for qs in query_symptoms:
-            if qs in part or part in qs:
-               match = True
-               break
-
-        if not match:
-            extra_count += 1
-
-    # apply penalty
-    if extra_count > 0:
-        penalty = min(0.1 * extra_count, 0.3)
-        confidence = confidence - penalty
-        confidence = max(confidence, 0)
-
-    # ✅ ALWAYS RUN THIS
-    match_count = sum(matches)
-
-    if match_count >= 1 and confidence >= 0.4:
-        return True, matches, confidence
-
-    return False, matches, confidence  
         
 # -------------------------------
 # 🔧 ANSWER FUNCTION
@@ -280,152 +158,15 @@ def answer_question(file, question):
     print("\n=== QUERY TYPE ===")
     print(query_type)
 
-    # -------------------------------
-    # 🧠 REASONING MODE (GENERIC)
-    # -------------------------------
     if query_type == "reasoning":
 
-        all_records = get_all_records()
-        all_chunks = []
+        return handle_reasoning(
 
-        for record in all_records:
-            all_chunks.append(record["chunk"])
+            question,
 
-        results = []
+            model
 
-        question_embedding = model.encode([question])
-
-        chunk_embeddings = []
-
-        for record in all_records:
-            chunk_embeddings.append(record["embedding"])
-
-        chunk_embeddings = np.array(chunk_embeddings)
-
-        chunk_norms = np.linalg.norm(chunk_embeddings, axis=1, keepdims=True)
-        question_norm = np.linalg.norm(question_embedding, axis=1, keepdims=True)
-
-        normalized_chunks = chunk_embeddings / chunk_norms
-        normalized_question = question_embedding / question_norm
-
-        scores = np.dot(normalized_chunks, normalized_question.T).flatten()
-
-        top_indices = [i for i in scores.argsort()[::-1] if scores[i] > 0.2][:10]
-
-        relevant_chunks = [all_records[i]["chunk"] for i in top_indices]
-
-        for chunk in relevant_chunks[:3]:  # limit for safety
-            print("\n--- CHUNK DEBUG ---\n", chunk[:200])
-            fields = extract_fields_from_chunk(chunk)
-
-            if not fields:
-                continue
-
-            validation = generic_consistency_check(fields, question, model)
-
-            # ❗ SKIP NON-MATCHING RECORDS
-            if not validation:
-                continue
-
-            groups = group_fields_semantically(fields)
-
-            results.append(f"""
-            Entity:
-            {groups["entity"]}
-
-            Attribute:
-            {groups["attribute"]}
-
-            Action:
-            {groups["action"]}
-
-            Reasoning:
-            {chr(10).join(validation)}
-            """)
-
-        return "\n\n".join(results)
-
-    # -------------------------------
-    # 🔢 NUMERIC REASONING ENGINE
-    # -------------------------------
-    if query_type == "numeric":
-
-        all_records = get_all_records()
-        all_chunks = []
-
-        for record in all_records:
-            all_chunks.append(record["chunk"])
-
-        results = []
-
-        # -------------------------------
-        # EXTRACT THRESHOLD
-        # -------------------------------
-        threshold_match = re.search(r"(\d+\.?\d*)", question)
-
-        if not threshold_match:
-           return "No numeric threshold found."
-
-        threshold = float(threshold_match.group(1))
-
-        # -------------------------------
-        # DETECT TARGET FIELD
-        # -------------------------------
-        target_field = extract_target_field(question)
-
-        print("\nTARGET FIELD:", target_field)
-        print("THRESHOLD:", threshold)
-
-        # -------------------------------
-        # SCAN ALL RECORDS
-        # -------------------------------
-        for record in all_records:
-
-            chunk = record["chunk"]
-            source = record["source"]
-            page = record["page"]
-
-            fields = extract_fields_from_chunk(chunk)
-
-            if not fields:
-                continue
-
-            print("\n--- NUMERIC RECORD ---")
-            print(fields)
-
-            matched_reasoning = generic_consistency_check(
-                fields,
-                question,
-                model
-            )
-            if not matched_reasoning:
-                continue
-            
-
-            # extract numeric value safely
-            value = fields.get(target_field)
-
-            result = f"""
-    Patient Name: {fields.get('name', 'Unknown')}
-    Source File: {source}
-    Page: {page}
-    Patient ID: {fields.get('entity', 'N/A')}
-    Page: {fields.get('page', 'N/A')}
-    Diagnosis: {fields.get('diagnosis', 'N/A')}
-    {target_field.title()}: {value}
-    Reasoning:
-    {chr(10).join(matched_reasoning)}
-    """
-
-            results.append(result)
-
-    # -------------------------------
-    # FINAL OUTPUT
-    # -------------------------------
-        if not results:
-            return "No matching numeric records found."
-
-        return "\n\n".join(results)    
+        )
 
     # -------------------------------
     # 🎯 EXACT IDENTIFIER MATCH (GENERIC)
@@ -458,184 +199,12 @@ def answer_question(file, question):
 
         return f"Identifier {identifier} not found in document."
 
-    # -------------------------------
-    # 🚀 AGGREGATION HANDLING (NEW)
-    # -------------------------------
-    # -------------------------------
-    # 📊 FREQUENCY ANALYSIS (NEW)
-    # -------------------------------
-    if query_type == "aggregation" and "most common" in question.lower():
-
-        all_records = get_all_records()
-
-        diagnosis_counts = {}
-
-        for record in all_records:
-
-            chunk = record["chunk"]
-            source = record["source"]
-            page = record["page"]
-            fields = extract_fields_from_chunk(chunk)
-
-            diagnosis = fields.get("diagnosis")
-            if not diagnosis:
-                continue
-
-            diagnosis = diagnosis.lower().strip()
-
-            # normalize
-            diagnosis = diagnosis.replace("treatment plan", "").strip()
-
-            diagnosis_counts[diagnosis] = diagnosis_counts.get(diagnosis, 0) + 1
-
-        if not diagnosis_counts:
-            return "No diagnoses found."
-
-        # find most common
-        most_common = max(diagnosis_counts, key=diagnosis_counts.get)
-        count = diagnosis_counts[most_common]
-
-        return f"Most common disease: {most_common.title()} (Total: {count})"
     if query_type == "aggregation":
 
-        # merge all chunks
-        all_records = get_all_records()
-        print("\n=== TOTAL RECORDS ===", len(all_records))
-
-        
-
-        
-
-        matched_chunks = []
-        matched_records = []
-
-       
-
-        for record in all_records:
-
-            chunk = record["chunk"]
-            source = record["source"]
-            page = record["page"]
-            fields = extract_fields_from_chunk(chunk)
-            if "diagnosis" in fields:
-                print("\n--- RECORD FOUND ---")
-                print("ENTITY:", fields.get("entity"))
-                print("NAME:", fields.get("name"))
-                print("DIAGNOSIS:", fields.get("diagnosis"))
-
-            # ALWAYS build both
-            combined_fields = " ".join([
-                f"{k} {v}".lower() for k, v in fields.items()
-            ]) if fields else ""
-
-            combined_full = chunk.lower()
-
-            # 🔥 NEW: normalize raw text too
-            combined_full = combined_full.replace("performed diagnosis", "diagnosis")
-            # check if ALL important words exist
-            # ✅ STRICT MATCH: ONLY CHECK ACTUAL FIELD VALUE
-            
-
-            
-
-            # 🔥 combine BOTH structured + raw text
-            symptoms = fields.get("symptoms", "").lower()
-            diagnosis = fields.get("diagnosis", "").lower()
-            diagnosis = normalize_medical_terms(diagnosis)
-
-            search_space = normalize_medical_terms(symptoms + " " + diagnosis)
-            
-            # -------------------------------
-            # 🧠 CLEAN AGGREGATION FILTER
-            # -------------------------------
-
-            target_words = extract_target_phrase(question)
- 
-            print("\nTARGET WORDS:", target_words)
-            print("DIAGNOSIS:", diagnosis)
-
-            matched = False
-
-            for word in target_words:
-
-                if word in diagnosis:
-                    matched = True
-                    break
-
-                symptom_parts = [
-                    s.strip()
-                    for s in symptoms.split(",")
-                ]
-
-                for part in symptom_parts:
-                    if word == part:
-                        matched = True
-                        break
-
-            if matched:
-                matched_chunks.append((chunk, 1.0))
-                matched_records.append({
-                    "fields": fields,
-                    "score": 1.0,
-                    "source": source,
-                    "page": page
-                })
-
-                print("\n=== MATCHED RECORD ===")
-                print(fields.get("entity"))
-                print(fields.get("diagnosis"))
- 
-        if not matched_chunks:
-            return "No matching records found."
-
-        # ✅ STEP 1: collect unique entities safely
-        unique_records = {}
-
-        for item in matched_records:
-
-            rec = item["fields"]
-            score = item["score"]
-            entity = rec.get("entity")
-            name = rec.get("name")
-
-            key = entity if entity else name
-
-            if key and key not in unique_records:
-                unique_records[key] = {
-                    "fields": rec,
-                    "score": score,
-                    "source": item["source"],
-                    "page": item["page"]
-                }
-        # ✅ DEBUG OUTSIDE LOOP
-        print("\n=== UNIQUE RECORD KEYS ===")
-        for k in unique_records:
-            print("KEY:", k)
-
+        return handle_aggregation(
+            question
+    )
     
-        # ✅ STEP 2: build clean output
-        result = f"Matching records:\n\n"
-
-        for key, item in unique_records.items():
-
-            rec = item["fields"]
-
-            result += (
-                f"- Patient Name: {rec.get('name','Unknown')}\n"
-                f"  Patient ID: {rec.get('entity','N/A')}\n"
-                f"  Page: {item['page']}\n"
-                f"  Diagnosis: {rec.get('diagnosis','N/A')}\n"
-                f"  Source File: {item['source']}\n"
-                f"  Confidence: {round(item['score'], 2)}\n\n"
-            )
-        # ✅ STEP 3: correct count
-        result += f"\nTotal count: {len(unique_records)}"
-
-        return result
-    
-
-    
-
     is_comparison = any(word in question.lower() for word in ["more", "compare", "difference", "strict"])
 
     expanded_question = question
@@ -806,7 +375,11 @@ def answer_question(file, question):
 app = gr.Interface(
     fn=answer_question,
     inputs=[gr.File(label="Upload PDF"), gr.Textbox(label="Ask a question")],
-    outputs="text",
+    outputs=gr.Textbox(
+        lines=25,
+        max_lines=40,
+        label="ClinicalMind Output"
+    ),
     title="📄 Ask Your PDF ClinicalMind",
     description="Upload a document and ask questions"
 )
