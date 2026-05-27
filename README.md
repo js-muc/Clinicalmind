@@ -1,44 +1,76 @@
-# ClinicalMind
-
-Scalable Clinical AI + RAG System
-
-## Architecture
-- Modular RAG
-- Clinical reasoning
-- Numeric reasoning
-- Agent-ready architecture
-- LangChain/LangGraph preparation
-
-## Run
-
-```bash
-pip install -r requirements.txt
-python app/main.py
-```
-
 <div align="center">
 
 # 🏥 ClinicalMind
-### AI-Powered Clinical Intelligence System for African Healthcare
+
+### Clinical AI + Retrieval-Augmented Reasoning System
+
+AI-powered medical document intelligence system built for scalable healthcare record analysis and reasoning.
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)
-![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![SentenceTransformers](https://img.shields.io/badge/SentenceTransformers-FF6F00?style=for-the-badge)
 ![Gradio](https://img.shields.io/badge/Gradio-FF7C00?style=for-the-badge)
+![RAG](https://img.shields.io/badge/RAG-System-blue?style=for-the-badge)
 
-> Upload patient records and query them in plain English.
-> Built for African healthcare workers who deserve AI assistance too.
-
-[🎥 Demo Video](https://youtu.be/Dqa3pkfvcDU) · [🐛 Report Bug](https://github.com/js-muc/Clinicalmind/issues) · [✨ Request Feature](https://github.com/js-muc/Clinicalmind/issues)
+[🎥 Demo Video](https://youtu.be/Dqa3pkfvcDU) ·
+[🐛 Issues](https://github.com/js-muc/Clinicalmind/issues) ·
+[⭐ Star Repository](https://github.com/js-muc/Clinicalmind)
 
 </div>
 
 ---
 
-## 📸 Demo
+# 📌 Overview
 
-![ClinicalMind Demo](demo.png)
+ClinicalMind is a modular clinical reasoning system that combines:
+
+- Retrieval-Augmented Generation (RAG)
+- Semantic medical search
+- Numeric reasoning
+- Patient aggregation queries
+- Structured clinical extraction
+
+The platform allows healthcare documents to be queried using natural language.
+
+Example:
+
+```text
+"Show patient HSP0007"
+
+"Which patients had temperature above 39?"
+
+"How many patients have pneumonia?"
+```
+
+## 📸 System Screenshots
+
+### 🏠 Main Interface
+
+![Home Screen](docs/screenshots/home-screen.png)
+
+---
+
+### 🔎 Patient Lookup Engine
+
+Natural language patient retrieval with structured extraction.
+
+![Lookup Demo](docs/screenshots/lookup-demo.png)
+
+---
+
+### 🔢 Numeric Clinical Reasoning
+
+Threshold-based reasoning engine for temperatures, vitals and measurements.
+
+![Numeric Demo](docs/screenshots/numeric-demo.png)
+
+---
+
+### 📊 Aggregation & Counting Engine
+
+Counts and groups patients by diagnoses and symptoms.
+
+![Aggregation Demo](docs/screenshots/aggregation-demo.png)
 
 ---
 
@@ -53,9 +85,9 @@ Most RAG systems just retrieve text.
 | Count patients by condition | ❌ | ✅ |
 | Apply numeric threshold logic | ❌ | ✅ |
 | Semantic clinical reasoning | ❌ | ✅ |
-| Detect anomalies | ❌ | ✅ |
-| Drug interaction warnings | ❌ | ✅ |
-| Risk scoring | ❌ | ✅ |
+| Structured clinical extraction | ❌ | ✅ |
+| Patient lookup routing | ❌ | ✅ |
+| Multi-query clinical search | ❌ | ✅ |
 
 ---
 
@@ -81,39 +113,73 @@ Most RAG systems just retrieve text.
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Current Architecture
 
-```
+```text
 clinicalmind/
 │
 ├── app/
-│   ├── agents/
-│   │   ├── tools/              # LangGraph agent tools
-│   │   ├── workflows/          # Diagnosis, risk, triage graphs
-│   │   └── memory/             # Conversation memory
 │   │
-│   ├── clinical/               # Clinical intelligence layer
+│   ├── clinical/
+│   │   ├── extractors.py
 │   │   ├── reasoning_engine.py
-│   │   ├── aggregation_engine.py
-│   │   ├── risk_engine.py
-│   │   └── symptom_engine.py
+│   │   └── record_lookup.py
 │   │
-│   ├── rag/                    # RAG pipeline
-│   │   ├── chunking.py
-│   │   ├── embeddings.py
-│   │   └── retrieval.py
+│   ├── handlers/
+│   │   └── lookup_handler.py
 │   │
-│   ├── routing/                # Query routing
-│   │   ├── intent_detection.py
-│   │   └── query_router.py
+│   ├── rag/
+│   │   └── loader.py
 │   │
-│   └── storage/                # Data storage
-│       ├── vector_store.py
-│       └── document_store.py
+│   ├── routing/
+│   │   ├── classifier.py
+│   │   └── query_parser.py
+│   │
+│   └── main.py
 │
 ├── requirements.txt
-├── run.py
 └── README.md
+```
+![ClinicalMind Architecture](docs/screenshots/architecture-diagram.png)
+
+## 🔄 System Flow
+
+```text
+User Query
+    ↓
+Query Classifier
+    ↓
+Routing Layer
+    ├── Lookup Handler
+    ├── Numeric Reasoning
+    ├── Aggregation Engine
+    └── Semantic Retrieval
+            ↓
+      Clinical Extraction
+            ↓
+      Structured Response
+```
+
+---
+
+## 🧠 Reasoning Pipeline
+
+```text
+PDF Upload
+   ↓
+Document Loader
+   ↓
+Chunk Processing
+   ↓
+Field Extraction
+   ↓
+Embedding Generation
+   ↓
+Semantic Search
+   ↓
+Clinical Reasoning
+   ↓
+Final Response
 ```
 
 ---
@@ -138,7 +204,7 @@ cp .env.example .env
 # Edit .env and add your OPENAI_API_KEY
 
 # Run the application
-python run.py
+python app/main.py
 
 ```
 
@@ -148,14 +214,14 @@ python run.py
 
 | Layer | Technology |
 |-------|-----------|
-| LLM | OpenAI GPT-4 |
-| RAG Framework | LangChain |
-| Agent Framework | LangGraph |
-| Embeddings | Sentence Transformers |
-| Vector Store | FAISS |
-| Interface | Gradio |
 | Language | Python 3.11 |
-| Deployment | Docker |
+| UI | Gradio |
+| Embeddings | SentenceTransformers |
+| LLM | OpenAI GPT-4 |
+| PDF Processing | PyPDF |
+| Vector Similarity | NumPy |
+| Environment | python-dotenv |
+| Architecture Style | Modular RAG |
 
 ---
 
@@ -179,7 +245,7 @@ Built specifically for African contexts.
 - [x] 3-layer reasoning engine
 - [x] PDF document processing
 - [x] Natural language clinical queries
-- [x] Modular LangGraph architecture
+- [x] Modular clinical routing architecture
 - [ ] Drug interaction detection
 - [ ] Patient risk scoring
 - [ ] React professional dashboard
@@ -187,6 +253,73 @@ Built specifically for African contexts.
 - [ ] Multi-document support
 - [ ] REST API via FastAPI
 
+---
+
+# 📈 Development Progress
+
+## ✅ Phase 1 — Core Clinical Engine
+
+Completed:
+
+- PDF ingestion pipeline
+- Semantic chunking
+- Embedding generation
+- Patient lookup engine
+- Structured field extraction
+- Numeric reasoning
+- Aggregation queries
+- Modular architecture refactor
+
+---
+
+## ✅ Phase 2 — Clinical Reasoning Layer
+
+Completed:
+
+- Symptom normalization
+- Semantic similarity scoring
+- Threshold-based reasoning
+- Clinical consistency checks
+- Structured patient retrieval
+- Semantic diagnosis matching
+
+---
+
+## 🚧 Phase 3 — Production Scaling
+
+In Progress:
+
+- LangGraph orchestration
+- FAISS vector database
+- FastAPI backend
+- Docker containerization
+- REST API endpoints
+- Multi-document support
+- React professional dashboard
+
+---
+
+## 🔮 Planned Enterprise Features
+
+- Drug interaction detection
+- AI-powered risk scoring
+- Multi-hospital deployment
+- Real-time clinical alerts
+- Medical audit logging
+- Secure authentication
+- Cloud deployment pipeline
+
+---
+
+## 📅 Latest Engineering Updates
+
+| Date | Update |
+|------|--------|
+| May 2026 | Refactored monolith into modular architecture |
+| May 2026 | Added dedicated lookup handler |
+| May 2026 | Stabilized extraction engine |
+| May 2026 | Improved README and documentation |
+| May 2026 | Added professional screenshots |
 ---
 
 ## 👨‍💻 Built By
