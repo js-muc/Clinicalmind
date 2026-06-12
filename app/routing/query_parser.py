@@ -11,7 +11,7 @@ def extract_target_phrase(question):
         "what", "which", "who", "where", "when", "why", "how",
         "many", "count", "number", "total", "all",
         "list", "find", "show", "give",
-        "are", "is", "was", "were",
+        "are", "is", "was", "were", "have", "has", "had",
         "the", "a", "an", "and", "of", "to", "in",
         "with", "for", "on", "at",
         "patients", "patient", "names", "name"
@@ -28,7 +28,11 @@ def extract_target_phrase(question):
 
     ignore_words.update({
         "presented",
-        "diagnosis"
+        "diagnosis",
+        "have",
+        "has",
+        "had"
+
     })
 
     important = [

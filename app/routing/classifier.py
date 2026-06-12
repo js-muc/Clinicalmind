@@ -35,15 +35,17 @@ def classify_query(question):
         "top",
         "all",
         "list",
+        "show",
         "which patients",
-        "show patients",
+        "patients",
         "patients with",
         "patients diagnosed",
         "diagnosed with",
         "who has",
         "who had"
     ]):
-        return "aggregation"
+       return "aggregation"
+        
 
     # 🩺 symptom search
     return "symptom"

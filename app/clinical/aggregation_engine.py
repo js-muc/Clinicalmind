@@ -105,6 +105,7 @@ def handle_aggregation(
             ).lower()
 
         )
+        print("DIAGNOSIS:", diagnosis)
 
         target_words = (
             extract_target_phrase(
@@ -124,6 +125,7 @@ def handle_aggregation(
 
             if len(word.strip()) > 2
         ]
+        print("TARGET WORDS:", target_words)
 
         symptom_parts = [
 
@@ -167,7 +169,11 @@ def handle_aggregation(
                 for word in target_words
 
             )
-
+        print(
+            "MATCH CHECK:",
+            matched,
+            diagnosis
+        )
         if matched:
 
             matched_records.append({
